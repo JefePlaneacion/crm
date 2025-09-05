@@ -10,9 +10,9 @@ params = {
         "pass": "EstebanGrey1704*"
     },
     "data": {
-        "type":"PLANEACION",
-        "f_inicio": "2025-01-01",
-        "f_fin": "2025-04-30"
+        "type":"APROBADOS",
+        "f_inicio": "2025-05-01",
+        "f_fin": "2025-08-14"
     }
 }
 
@@ -26,16 +26,19 @@ if response.status_code == 200:
     # Convertir la respuesta JSON a un DataFrame de pandas
     df = pd.DataFrame(data)
 
-df_final=df['registros_planeacion']
+df_final=df.copy()['registros_aprobados'].apply(pd.Series)
 
-df_final.to_excel('plan_produccion.xlsx', index=False)
+df_final_prod_ped = df_final[['pedido','cliente','oportunidad','razon_anulacion','estado','regional','f_cotizacion','f_pedido','f_comercial','f_diseno','f_produccion','f_despachos','f_instalacion']].copy()
 
+df_final_prod_ped.to_excel('plan_pedidos.xlsx', index=False)
 
+'''
 datos_expandidos = []
 
 for pedido in df_final:
-    for producto in pedido['productos']:
+    for producto in pedido['registros_aprobados']:
         fila= {
+
             'id':pedido['id'],
             'cliente': pedido['nombre_factura'],
             'fecha_pedido': pedido['f_pedido'],
@@ -71,5 +74,11 @@ df_final.to_excel('plan_produccion.xlsx', index=False)
 print(df_final.head())
 
 
+
+
+
+
+
+'''
 
 

@@ -1,0 +1,4 @@
+proyecto_planproduccion/
+__pycache__/
+*.pyc
+.env

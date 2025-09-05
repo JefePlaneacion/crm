@@ -1,18 +1,35 @@
-import pyodbc
 import pandas as pd
+from sqlalchemy import create_engine
 
+# Datos de conexión
 server = "190.85.249.37"
 database = "UnoEE_Pruebas"
 username = "Planeacion_BDpruebas"
 password = "PR2525+++"
 
-conn_string = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}"
-conn = pyodbc.connect(conn_string)
-cursor = conn.cursor()
+# Cadena de conexión de SQLAlchemy
+conn_string = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=YES&TrustServerCertificate=YES"
 
-df = pd.read_sql_query("SELECT TOP 20 * FROM t860_mf_op_componentes", conn)
+# Crear el engine de SQLAlchemy
+engine = create_engine(conn_string)
 
-df.to_excel('plan_produc1.xlsx', index=False)
+# Conexión y manejo de errores
+try:
+    # Usando 'with' para asegurar que la conexión se cierre correctamente
+    with engine.connect() as conn:
+        # Consulta SQL
+        query = "SELECT TOP 3000 * FROM t400_cm_existencia"
+        
 
-print(df.head())
-conn.close()
+        # Leer la consulta directamente con pandas
+        df = pd.read_sql(query, conn)
+        
+        # Exportar el DataFrame a Excel
+        df.to_excel('Base_MATERIAL_Gen.xlsx', index=False, sheet_name='Datos_Consultados')
+        
+        # Mostrar las primeras filas del DataFrame
+        print(df.head())
+
+except Exception as e:
+    # Manejo de errores de conexión o consulta
+    print(f"Error al conectar a la base de datos: {e}")
