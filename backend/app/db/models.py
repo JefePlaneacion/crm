@@ -22,10 +22,10 @@ class Inventario(Base):
 
    # Aquí puedes especificar que la combinación de f400_rowid_item_ext y f400_rowid_bodega es la clave primaria
     __mapper_args__ = {
-        'primary_key': [f400_rowid_item_ext, f400_rowid_bodega]
+        PrimaryKeyCostraint("f400_rowid_item_ext", "f400_rowid_bodega"),
     }
 
-    items = relationship("Codigos", back_populates="existencias")
+    item = relationship("Codigos", back_populates="existencias")
     bodegas= relationship("Bodega", back_populates="existencias")
 
    
@@ -47,7 +47,7 @@ class Codigos(Base): # tabla de codigos de items
     f120_descripcion=Column(String(255), nullable=True)
     f120_id_unidad_inventario=Column(String(10), nullable=True)
 
-    existencias = relationship("Inventario", back_populates="items")
+    existencias = relationship("Inventario", back_populates="item")
 
 
 
