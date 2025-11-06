@@ -3,9 +3,9 @@ from sqlalchemy import create_engine
 
 # Datos de conexión
 server = "190.85.249.37"
-database = "UnoEE_Pruebas"
-username = "Planeacion_BDpruebas"
-password = "PR2525+++"
+database = "UnoEE"
+username = "PLANEACION"
+password = "Damis2025"
 
 # Cadena de conexión de SQLAlchemy
 conn_string = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=YES&TrustServerCertificate=YES"

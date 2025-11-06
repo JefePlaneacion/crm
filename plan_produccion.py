@@ -4,6 +4,13 @@ from datetime import datetime
 import numpy as np
 import json, ast
 import re
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.formula.translate import Translator
+from pathlib import Path
+
+
+
 
 url = 'https://tg.toscanagroup.com.co/api_powerbi.php'
 today_dateo = datetime.now().date()
@@ -100,6 +107,9 @@ df_final_prod = pd.concat(
 
 df_final_prod["valor_total"] = pd.to_numeric(df_final_prod["valor_total"], errors="coerce")
 
+
+#BASE DE DATOS PARA PLAN DE PRODUCCIÓN
+
 df_final_plan_prod = df_final_prod.copy()  #BASE DE DATOS PARA PLAN DE PRODUCCIÓN
 
 df_final_plan_prod=df_final_plan_prod[df_final_plan_prod['tipo_producto'] !='NO CONFORME']
@@ -128,13 +138,125 @@ conditions = [
 ]
 choices = ["DISEÑO", "COMERCIAL", "COMERCIAL", "PRODUCCION", "DISEÑO","DISEÑO","PRODUCCION","PRODUCCION","COMERCIAL"]
 
-df_final_plan_prod["estado_crm"] = np.select(conditions, choices, default="FINALIZADO")
+df_final_plan_prod["estado_crm"] = np.select(conditions, choices, default="FINALIZADO") 
 
 
 
+def actualizar_base_datos_seguro(
+    ruta_excel: str,
+    df: pd.DataFrame,
+    hoja_objetivo: str = "baseDatos",
+    fila_header: int = 1,
+    columnas_datos_whitelist: list[str] | None = None,  # columnas que SÍ puedo escribir
+    detectar_formulas_hasta_filas: int = 5,             # cuántas filas de datos escanear para detectar fórmulas
+    limpiar_solo_columnas_datos: bool = True,           # NO limpiar columnas que no estén en whitelist
+    rellenar_formulas: bool = False,                    # por defecto NO tocamos fórmulas
+):
+    ruta = Path(ruta_excel)
+    keep_vba = ruta.suffix.lower() == ".xlsm"
 
+    wb = load_workbook(ruta_excel, keep_vba=keep_vba, data_only=False)  # data_only=False para leer fórmulas
+    if hoja_objetivo not in wb.sheetnames:
+        raise ValueError(f"No existe la hoja '{hoja_objetivo}' en '{ruta_excel}'.")
+    ws = wb[hoja_objetivo]
 
-df_final_plan_prod.to_excel("pedidosProductosFinal.xlsx", index=False)
+    # 1) Leer encabezados
+    headers = {}
+    col = 1
+    # límite prudente
+    while col <= 500:
+        v = ws.cell(row=fila_header, column=col).value
+        if v is not None and str(v).strip():
+            headers[str(v).strip()] = col
+        col += 1
+
+    # 2) Definir columnas que escribiré (whitelist)
+    if columnas_datos_whitelist is None:
+        columnas_datos = [c for c in df.columns if c in headers]  # solo las que existan en la hoja
+    else:
+        columnas_datos = [c for c in columnas_datos_whitelist if c in headers]
+
+    # 3) Detectar columnas con fórmula (excluirlas siempre)
+    fila_datos_ini = fila_header + 1
+    columnas_con_formula = set()
+    if detectar_formulas_hasta_filas and ws.max_row >= fila_datos_ini:
+        to_row = min(ws.max_row, fila_datos_ini + max(detectar_formulas_hasta_filas - 1, 0))
+        for nombre_col, cidx in headers.items():
+            for r in range(fila_datos_ini, to_row + 1):
+                val = ws.cell(row=r, column=cidx).value
+                if isinstance(val, str) and val.startswith("="):
+                    columnas_con_formula.add(nombre_col)
+                    break
+
+    # Excluir de la whitelist cualquier columna con fórmula detectada
+    columnas_datos = [c for c in columnas_datos if c not in columnas_con_formula]
+
+    # 4) Validación: que el DF tenga esas columnas
+    faltantes_en_df = [c for c in columnas_datos if c not in df.columns]
+    if faltantes_en_df:
+        raise ValueError(f"Estas columnas esperadas no están en df: {faltantes_en_df}")
+
+    # 5) Limpieza suave SOLO en columnas_datos (nunca en columnas con fórmula ni en otras hojas)
+    if limpiar_solo_columnas_datos and ws.max_row >= fila_datos_ini:
+        for nombre_col in columnas_datos:
+            cidx = headers[nombre_col]
+            for r in range(fila_datos_ini, ws.max_row + 1):
+                ws.cell(row=r, column=cidx).value = None
+
+    # 6) Escribir df en columnas_datos
+    for i, (_, row) in enumerate(df.iterrows(), start=fila_datos_ini):
+        for nombre_col in columnas_datos:
+            cidx = headers[nombre_col]
+            ws.cell(row=i, column=cidx).value = row[nombre_col]
+
+    # 7) (Opcional) Rellenar fórmulas SOLO en columnas que ya tenían fórmula
+    if rellenar_formulas and columnas_con_formula:
+        nfilas_nuevas = len(df)
+        last_row = fila_datos_ini + max(nfilas_nuevas - 1, 0)
+        for nombre_col in (set(headers) & columnas_con_formula):
+            cidx = headers[nombre_col]
+            # buscar una celda "plantilla" con fórmula en el bloque superior
+            plantilla = None
+            plantilla_coord = None
+            for r in range(fila_datos_ini, fila_datos_ini + detectar_formulas_hasta_filas):
+                val = ws.cell(row=r, column=cidx).value
+                if isinstance(val, str) and val.startswith("="):
+                    plantilla = val
+                    plantilla_coord = ws.cell(row=r, column=cidx).coordinate
+                    break
+            if not plantilla:
+                continue  # no se propaga nada si no existe plantilla
+
+            for r in range(fila_datos_ini, last_row + 1):
+                destino = ws.cell(row=r, column=cidx)
+                nueva = Translator(plantilla, origin=plantilla_coord).translate_formula(destino.coordinate)
+                destino.value = nueva
+
+    # 8) Guardar (no se tocan otras hojas)
+    wb.save(ruta_excel)
+
+# Tras construir df_final_plan_prod ...
+ruta = r"C:\Users\JORGE CONTRERAS\proyecto_plan_produccion\pedidosProductosFinal.xlsx"
+
+# Define explícitamente las columnas de DATOS que sí quieres escribir.
+# (Las de fórmula NUNCA van aquí.)
+columnas_datos = [
+    "pedido","cliente","tipo_producto","oportunidad","razon_anulacion","f_cotizacion","f_pedido","f_comercial","f_diseno","f_produccion","f_despachos","f_instalacion","fe_comercial",
+    "fe_diseno","fe_produccion","fe_despachos","fe_instalacion","estado","regional","id_producto", "producto", "color","color_estructura","cantidad","largo","alto","proyeccion" ,"valor_total","estado_crm",
+    # agrega aquí SOLO columnas que NO tienen fórmulas en baseDatos
+]
+
+actualizar_base_datos_seguro(
+    ruta_excel=ruta,
+    df=df_final_plan_prod,
+    hoja_objetivo="baseDatos",
+    fila_header=1,
+    columnas_datos_whitelist=columnas_datos,   # whitelist estricta
+    detectar_formulas_hasta_filas=10,          # detecta fórmulas en primeras 10 filas de datos
+    limpiar_solo_columnas_datos=True,          # solo limpia esas columnas
+    rellenar_formulas=False                    # pon True SOLO si necesitas auto-fill de fórmulas
+)
+
 
 
 
