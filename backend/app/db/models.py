@@ -250,38 +250,24 @@ class DocumentosInventario(Base):
 
 
 class MovInventario(Base):
-    __tablename__ = "t4702_cm_log_movto_invent"
-
-    f4702_ts=Column(DateTime, nullable=True)
-    f4702_id_cia=Column(Integer, nullable=True)
-    f4702_id_co=Column(String, nullable=True)
-    f4702_id_tipo=Column(String, nullable=True)
-    f4702_consec_docto=Column(Integer, nullable=True)
-    f4702_rowid_movto=Column(Integer, primary_key=True,nullable=True)
-    f4702_rowid_docto=Column(Integer,ForeignKey("t450_cm_docto_invent.f450_rowid_docto"),nullable=True)
-    f4702_rowid_item_ext=Column(Integer,ForeignKey("t120_mc_items.f120_id"), nullable=True)
-    f4702_rowid_bodega=Column(Integer,ForeignKey("t150_mc_bodegas.f150_rowid"), index=True, nullable=True)
-    f4702_id_concepto=Column(Integer,ForeignKey("t145_mc_conceptos.f145_id"),index=True, nullable=False)
-    f4702_cant_1=Column(Float, nullable=True)
-    f4702_costo_prom_uni=Column(Float, nullable=True)
-    f4702_costo_prom_tot=Column(Float,nullable=True)
-    f4702_usuario=Column(String, nullable=True)
-
-    concepto_mov = relationship("Conceptos", back_populates="Id_concepto_mov", foreign_keys=[f4702_id_concepto], uselist=False)
-    mov_bodegas = relationship("Bodega",back_populates="bod_mov_inventario", foreign_keys=[f4702_rowid_bodega], uselist=False)
-    mov_items = relationship("Codigos",back_populates="cod_mov_inventario", foreign_keys=[f4702_rowid_item_ext], uselist=False)
-    mov_doc = relationship("DocumentosInventario", back_populates="doc_inv")
-
-
-    estado = relationship(
-        "Estado",
-        secondary="t450_cm_docto_invent",
-        primaryjoin="MovInventario.f4702_rowid_docto == DocumentosInventario.f450_rowid_docto",
-        secondaryjoin="DocumentosInventario.f450_ind_estado_cm == Estado.f054_id",
-        foreign_keys="[DocumentosInventario.f450_rowid_docto, DocumentosInventario.f450_ind_estado_cm]",
-        uselist=False,
-        viewonly=True
-    )
+    __tablename__ = "t470_cm_movto_invent"
+    f470_ts=Column(DateTime, nullable=True)
+    f470_id_cia=Column(Integer, nullable=True)
+    f470_rowid=Column(Integer, primary_key=True, nullable=True)
+    f470_rowid_docto=Column(Integer, ForeignKey("t450_cm_docto_invent.f450_rowid_docto"),nullable=True)
+    f470_rowid_item_ext=Column(Integer,ForeignKey("t120_mc_items.f120_id") nullable=True)
+    f470_rowid_bodega=Column(Integer,ForeignKey("t150_mc_bodegas.f150_id"),nullable=True)
+    f470_id_periodo=Column(Integer, nullable=True)
+    f470_ind_estado_cm=Column(Integer ,nullable=True)
+    f470_id_concepto=Column(Integer,nullable=True)
+    f470_id_unidad_medida=Column(String,nullable=True)
+    f470_cant_base=Column(Integer,nullable=True)
+    f470_costo_prom_uni=Column(Integer,nullable=True)
+    f470_costo_prom_tot=Column(Integer,nullable=True)
+    
+    mov_doc= relationship("DocumentosInventario",back_populates="doc_inv")
+    mov_bodegas=relationship("Bodega",back_populates="bod_inv")
+    mov_items=relationship("Codigos",back_populates="cod_mov_inventario")
 
     
 
