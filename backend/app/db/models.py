@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime,ForeignKey,PrimaryKeyConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime,ForeignKey,PrimaryKeyConstraint,ForeignKeyConstraint
 from app.db.session import Base
 from sqlalchemy.orm import relationship
 
@@ -81,7 +81,7 @@ class Bodega(Base): #OK
 
     existencias= relationship("Inventario", back_populates="bodegas")
     items_compras_inventario = relationship("ItemsCompras", back_populates="bodegas")
-    bod_mov_inventario = relationship("MovInventario", back_populates="mov_bodegas")
+    bod_inv = relationship("MovInventario", back_populates="mov_bodegas")
 
 # Tabla de codigos de items
 class Codigos(Base):
@@ -207,7 +207,7 @@ class Conceptos(Base):
     f145_id=Column(Integer, primary_key=True, index=True)
     f145_descripcion=Column(String(150), nullable=True)
 
-    Id_concepto_mov = relationship("MovInventario", back_populates="concepto_mov")
+    
 
 
 class ClasesDocumento(Base):

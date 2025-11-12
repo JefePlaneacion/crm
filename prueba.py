@@ -18,14 +18,14 @@ try:
     # Usando 'with' para asegurar que la conexión se cierre correctamente
     with engine.connect() as conn:
         # Consulta SQL
-        query = "SELECT TOP 3000 * FROM t125_mc_items_criterios"
+        query = "SELECT top 300* FROM t450_cm_docto_invent WHERE "
         
 
         # Leer la consulta directamente con pandas
         df = pd.read_sql(query, conn)
         
         # Exportar el DataFrame a Excel
-        df.to_excel('Base_compo_movtoTIPOI.xlsx', index=False, sheet_name='Datos_Consultados')
+        df.to_excel('TABLAS_RESUM_INTPPP.xlsx', index=False, sheet_name='Datos_Consultados')
         
         # Mostrar las primeras filas del DataFrame
         print(df.head())
