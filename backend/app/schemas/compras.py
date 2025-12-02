@@ -115,6 +115,7 @@ class Items_Compras_Base(BaseModel):
     razon_social: Optional[str] = None
     estado_doc: Optional[str] = None
 
+    centro_operacion: Optional[str] = None
 
     class Config:
         from_attributes = True

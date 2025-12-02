@@ -8,7 +8,9 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.formula.translate import Translator
 from pathlib import Path
-
+from bs4 import BeautifulSoup
+from requests_html import HTMLSession
+from datetime import date
 
 
 
@@ -25,6 +27,47 @@ params = {
         "f_fin": today_dateo.strftime("%Y-%m-%d")
     }
 }
+
+
+def obtener_trm_hoy():
+    """
+    Obtiene la TRM vigente del día desde el API oficial de datos.gov.co.
+    Retorna un float con el valor de la TRM.
+    """
+    url = "https://www.datos.gov.co/resource/32sa-8pi3.json"
+
+    params = {
+        "$limit": 1,
+        "$order": "vigenciadesde DESC"
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        if not data:
+            raise RuntimeError("El API no devolvió datos de TRM.")
+
+        # Extraer y convertir el valor
+        valor_str = data[0].get("valor")
+
+        if not valor_str:
+            raise RuntimeError("No se encontró el campo 'valor' en los datos de TRM.")
+
+        # Convertir a float
+        valor_trm = float(valor_str.replace(",", ""))
+
+        return valor_trm
+
+    except Exception as e:
+        raise RuntimeError(f"Error obteniendo TRM: {e}")
+
+
+if __name__ == "__main__":
+    trm = obtener_trm_hoy()
+    print("TRM vigente hoy:", trm)
+
 
 # Realizar la solicitud POST a la API
 response = requests.post(url=url, json=params)
@@ -140,7 +183,13 @@ choices = ["DISEÑO", "COMERCIAL", "COMERCIAL", "PRODUCCION", "DISEÑO","DISEÑO
 
 df_final_plan_prod["estado_crm"] = np.select(conditions, choices, default="FINALIZADO") 
 
+df_final_plan_prod["valor_total"]= np.where(
 
+    df_final_plan_prod["regional"]=="Toscana",
+    df_final_plan_prod["valor_total"]*trm,
+    df_final_plan_prod["valor_total"]
+
+)
 
 def actualizar_base_datos_seguro(
     ruta_excel: str,
@@ -232,12 +281,16 @@ def actualizar_base_datos_seguro(
                 nueva = Translator(plantilla, origin=plantilla_coord).translate_formula(destino.coordinate)
                 destino.value = nueva
 
+
+    
+
     # 8) Guardar (no se tocan otras hojas)
     wb.save(ruta_excel)
 
-# Tras construir df_final_plan_prod ...
-ruta = r"C:\Users\JORGE CONTRERAS\proyecto_plan_produccion\pedidosProductosFinal.xlsx"
 
+
+# Tras construir df_final_plan_prod ...
+ruta = r"C:\Users\JORGE CONTRERAS\OneDrive - 900208659-2 DAMIS SAS\Escritorio\PLANEACION\PLANEACION\INDICADORES PLANEACION\PROGRAMA_PRODUCCION\pedidosProductosFinal.xlsx"
 # Define explícitamente las columnas de DATOS que sí quieres escribir.
 # (Las de fórmula NUNCA van aquí.)
 columnas_datos = [
